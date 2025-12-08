@@ -2,14 +2,14 @@ require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const cors = require('cors');
-const connectDB = require('./config/database');
-const mqttService = require('./services/mqtt.service');
-const socketService = require('./services/socket.service');
+const connectDB = require('./src/config/database');
+const mqttService = require('./src/services/mqtt.service');
+const socketService = require('./src/services/socket.service');
 
 // Import Routes
-const deviceRoutes = require('./routes/device.routes');
-const controlRoutes = require('./routes/control.routes');
-const statsRoutes = require('./routes/stats.routes');
+const deviceRoutes = require('./src/routes/device.routes');
+const controlRoutes = require('./src/routes/control.routes');
+const statsRoutes = require('./src/routes/stats.routes');
 
 // Init App
 const app = express();
