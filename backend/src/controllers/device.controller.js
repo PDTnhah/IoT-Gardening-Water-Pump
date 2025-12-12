@@ -2,7 +2,11 @@ const Device = require('../models/device.model');
 const mqttService = require('../services/mqtt.service');
 const ActionLog = require('../models/actionLog.model');
 
-// [GET] /api/devices
+/**
+ * @desc    Lấy danh sách tất cả thiết bị trong hệ thống
+ * @route   GET /api/devices
+ * @access  Public
+ */
 const getAllDevices = async (req, res) => {
     try {
         const devices = await Device.find();
@@ -12,7 +16,12 @@ const getAllDevices = async (req, res) => {
     }
 };
 
-// [GET] /api/devices/:id
+/**
+ * @desc    Lấy thông tin chi tiết trạng thái hiện tại của một thiết bị
+ * @route   GET /api/devices/:id
+ * @access  Public
+ * @params  {id} - Device ID
+ */
 const getDeviceById = async (req, res) => {
     try {
         const device = await Device.findOne({ deviceId: req.params.id });
@@ -23,8 +32,13 @@ const getDeviceById = async (req, res) => {
     }
 };
 
-// [POST] /api/devices/:id/config
-// Cập nhật ngưỡng tưới
+/**
+ * @desc    Cập nhật cấu hình ngưỡng tưới (Automation Config)
+ * @route   POST /api/devices/:id/config
+ * @access  Public
+ * @params  {id} - Device ID
+ * @body    {soilThresholdMin, soilThresholdMax} - Ngưỡng dưới và ngưỡng trên
+ */
 const updateConfig = async (req, res) => {
     try {
         const { soilThresholdMin, soilThresholdMax } = req.body;
@@ -39,8 +53,13 @@ const updateConfig = async (req, res) => {
     }
 };
 
-// [POST] /api/control/:id/mode
-// Chuyển chế độ AUTO / MANUAL
+/**
+ * @desc    Chuyển đổi chế độ hoạt động (Auto / Manual)
+ * @route   POST /api/control/:id/mode
+ * @access  Public
+ * @params  {id} - Device ID
+ * @body    {mode} - Giá trị: 'auto' | 'manual_on' | 'manual_off'
+ */
 const setMode = async (req, res) => {
     const { id } = req.params;
     const { mode } = req.body; // 'auto', 'manual_on', 'manual_off'
@@ -69,8 +88,13 @@ const setMode = async (req, res) => {
     }
 };
 
-// [POST] /api/control/:id/pump
-// Bật tắt bơm thủ công
+/**
+ * @desc    Bật hoặc Tắt máy bơm thủ công (Chỉ hoạt động khi ở chế độ Manual)
+ * @route   POST /api/control/:id/pump
+ * @access  Public
+ * @params  {id} - Device ID
+ * @body    {pump} - Boolean: true (Bật) | false (Tắt)
+ */
 const togglePump = async (req, res) => {
     const { id } = req.params;
     const { pump } = req.body; // true / false
