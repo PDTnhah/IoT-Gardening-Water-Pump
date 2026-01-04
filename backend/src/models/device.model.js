@@ -7,6 +7,7 @@ const DeviceSchema = new mongoose.Schema({
         required: true,
         unique: true,
         index: true,
+        uppercase: true,
         trim: true
     },
     name: {
