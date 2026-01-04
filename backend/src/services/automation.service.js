@@ -1,9 +1,8 @@
 const Device = require('../models/device.model');
 const ActionLog = require('../models/actionLog.model');
-const mqttService = require('./mqtt.service');
 const { MODES } = require('../config/constants');
 
-const checkAutomation = async (deviceId, incomingData) => {
+const checkAutomation = async (deviceId, incomingData, sendCommandCallback) => {
     try {
         const device = await Device.findOne({ deviceId });
         if (!device) return;
@@ -38,14 +37,14 @@ const checkAutomation = async (deviceId, incomingData) => {
                 console.error(`[EMERGENCY] ${deviceId}: Pump running too long (> ${maxPumpDuration} mins). Force OFF.`);
 
                 // Gửi lệnh tắt khẩn cấp
-                mqttService.sendCommand(deviceId, { cmd: 'pump', value: false });
+                sendCommandCallback(deviceId, { cmd: 'pump', value: false });
 
                 // Cập nhật cảnh báo
                 await Device.updateOne({ deviceId }, {
                     'health.status': 'ERROR',
                     'health.message': 'Bơm chạy quá lâu! Có thể do rò rỉ nước hoặc cảm biến hỏng.'
                 });
-                return; // Dừng logic tại đây
+                return;
             }
         }
 
@@ -63,7 +62,7 @@ const checkAutomation = async (deviceId, incomingData) => {
             }
 
             console.log(`[AUTO] ${deviceId}: Soil ${soil}% < ${soilThresholdMin}% -> PUMP ON`);
-            mqttService.sendCommand(deviceId, { cmd: 'pump', value: true });
+            sendCommandCallback(deviceId, { cmd: 'pump', value: true });
 
             await ActionLog.create({
                 deviceId, action: 'PUMP_ON', actor: 'SYSTEM',
@@ -77,7 +76,7 @@ const checkAutomation = async (deviceId, incomingData) => {
         // Chỉ tắt khi đất đã thực sự ướt (đạt Max), không tắt lừng khừng
         else if (soil >= soilThresholdMax && incomingData.pump) {
             console.log(`[AUTO] ${deviceId}: Soil ${soil}% >= ${soilThresholdMax}% -> PUMP OFF`);
-            mqttService.sendCommand(deviceId, { cmd: 'pump', value: false });
+            sendCommandCallback(deviceId, { cmd: 'pump', value: false });
 
             // Clear lỗi nếu có (vì hệ thống đã hoạt động lại bình thường)
             await Device.updateOne({ deviceId }, {
