@@ -54,5 +54,3 @@ const getInsights = async (req, res) => {
 };
 
 module.exports = { getSensorLogs, getActionHistory, getInsights };
-
-module.exports = { getSensorLogs, getActionHistory };
