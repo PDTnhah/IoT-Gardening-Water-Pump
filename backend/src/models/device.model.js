@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { DEFAULT_CONFIG, MODES } = require('../config/constants');
+const { MODES } = require('../config/constants');
 
 const DeviceSchema = new mongoose.Schema({
     deviceId: {
@@ -14,27 +14,36 @@ const DeviceSchema = new mongoose.Schema({
         default: 'Vườn Thông Minh'
     },
 
-    // Trạng thái hiện tại (Realtime Snapshot)
+    // Trạng thái Realtime
     status: {
         temp: { type: Number, default: 0 },
         humidity: { type: Number, default: 0 },
         soil: { type: Number, default: 0 },
-        pump: { type: Boolean, default: false }, // true: ON, false: OFF
-        mode: {
-            type: String,
-            enum: [MODES.AUTO, MODES.MANUAL_ON, MODES.MANUAL_OFF],
-            default: MODES.AUTO
-        },
-        lastSeen: { type: Date, default: Date.now } // Để check Online/Offline
+        pump: { type: Boolean, default: false },
+        mode: { type: String, enum: Object.values(MODES), default: MODES.AUTO },
+        lastSeen: { type: Date, default: Date.now },
+
+        // Theo dõi thời gian bơm để phát hiện lỗi
+        pumpStartTime: { type: Date, default: null },
     },
 
-    // Cấu hình ngưỡng tưới (Automation Logic)
+    // Hệ thống cảnh báo sức khỏe thiết bị
+    health: {
+        status: { type: String, enum: ['OK', 'WARNING', 'ERROR'], default: 'OK' },
+        message: { type: String, default: '' } // VD: "Bơm chạy nhưng đất không ẩm!"
+    },
+
+    // Cấu hình nâng cao
     config: {
-        soilThresholdMin: { type: Number, default: DEFAULT_CONFIG.SOIL_MIN },
-        soilThresholdMax: { type: Number, default: DEFAULT_CONFIG.SOIL_MAX }
+        soilThresholdMin: { type: Number, default: 30 }, // Dưới mức này thì tưới
+        soilThresholdMax: { type: Number, default: 80 }, // Đủ mức này thì dừng
+
+        // Bảo vệ cây
+        tempLimit: { type: Number, default: 37 }, // Quá nóng -> Không tưới (tránh sốc nhiệt)
+
+        // Bảo vệ phần cứng
+        maxPumpDuration: { type: Number, default: 15 }, // Phút. Nếu bơm chạy quá lâu -> Tự ngắt (tránh tràn/cháy bơm)
     }
-}, {
-    timestamps: true // Tự động tạo createdAt, updatedAt
-});
+}, { timestamps: true });
 
 module.exports = mongoose.model('Device', DeviceSchema);

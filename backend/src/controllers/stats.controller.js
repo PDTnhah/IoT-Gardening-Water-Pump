@@ -1,5 +1,6 @@
 const SensorLog = require('../models/sensorLog.model');
 const ActionLog = require('../models/actionLog.model');
+const insightService = require('../services/insight.service');
 
 /**
  * @desc    Lấy lịch sử dữ liệu cảm biến (Sensor Data) để vẽ biểu đồ
@@ -40,5 +41,18 @@ const getActionHistory = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+
+// [GET] /api/analytics/:id/insights
+const getInsights = async (req, res) => {
+    try {
+        const result = await insightService.analyzeDeviceHealth(req.params.id);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+module.exports = { getSensorLogs, getActionHistory, getInsights };
 
 module.exports = { getSensorLogs, getActionHistory };

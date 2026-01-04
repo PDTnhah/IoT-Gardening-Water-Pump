@@ -1,59 +1,96 @@
 const Device = require('../models/device.model');
 const ActionLog = require('../models/actionLog.model');
+const mqttService = require('./mqtt.service');
 const { MODES } = require('../config/constants');
 
-/**
- * Kiểm tra logic tự động
- * @param {Object} deviceData - Dữ liệu mới nhất từ MQTT { soil, temp... }
- * @param {String} deviceId
- * @param {Function} sendCommandCallback - Hàm để gửi lệnh MQTT ngược lại
- */
-const checkAutomation = async (deviceId, deviceData, sendCommandCallback) => {
+const checkAutomation = async (deviceId, incomingData) => {
     try {
-        // 1. Lấy cấu hình thiết bị từ DB
         const device = await Device.findOne({ deviceId });
         if (!device) return;
 
-        const currentMode = device.status.mode || MODES.AUTO;
-        const isPumpOn = deviceData.pump; // Trạng thái bơm hiện tại từ cảm biến gửi lên
-        const currentSoil = deviceData.soil;
-
-        // Chỉ chạy logic nếu đang ở chế độ AUTO
-        if (currentMode === MODES.AUTO) {
-            const { soilThresholdMin, soilThresholdMax } = device.config;
-
-            // Logic 1: Đất quá khô -> Bật bơm
-            if (currentSoil < soilThresholdMin && !isPumpOn) {
-                console.log(`[AUTO] ${deviceId}: Soil ${currentSoil}% < ${soilThresholdMin}% -> ON PUMP`);
-
-                // Gửi lệnh MQTT
-                sendCommandCallback(deviceId, { cmd: 'pump', value: true });
-
-                // Lưu Log hành động
-                await ActionLog.create({
-                    deviceId,
-                    action: 'PUMP_ON',
-                    actor: 'SYSTEM',
-                    details: `Soil ${currentSoil}% < Min ${soilThresholdMin}%`
-                });
-            }
-
-            // Logic 2: Đất đã đủ ẩm -> Tắt bơm
-            else if (currentSoil > soilThresholdMax && isPumpOn) {
-                console.log(`[AUTO] ${deviceId}: Soil ${currentSoil}% > ${soilThresholdMax}% -> OFF PUMP`);
-
-                // Gửi lệnh MQTT
-                sendCommandCallback(deviceId, { cmd: 'pump', value: false });
-
-                // Lưu Log hành động
-                await ActionLog.create({
-                    deviceId,
-                    action: 'PUMP_OFF',
-                    actor: 'SYSTEM',
-                    details: `Soil ${currentSoil}% > Max ${soilThresholdMax}%`
-                });
+        // 1. Cập nhật thời gian bơm (Để tính toán Safety)
+        // Nếu bơm đang bật mà trong DB chưa ghi nhận start time -> Ghi vào
+        if (incomingData.pump && !device.status.pumpStartTime) {
+            device.status.pumpStartTime = new Date();
+            await device.save();
+        }
+        // Nếu bơm tắt -> Reset start time
+        else if (!incomingData.pump) {
+            if (device.status.pumpStartTime) {
+                device.status.pumpStartTime = null;
+                await device.save();
             }
         }
+
+        // Chỉ chạy logic Auto nếu mode là AUTO
+        if (device.status.mode !== MODES.AUTO) return;
+
+        const { soil, temp } = incomingData;
+        const { soilThresholdMin, soilThresholdMax, tempLimit, maxPumpDuration } = device.config;
+
+        // ====================================================
+        // RULE 1: SAFETY CUTOFF (Bảo vệ phần cứng)
+        // ====================================================
+        if (incomingData.pump && device.status.pumpStartTime) {
+            const minutesRunning = (new Date() - new Date(device.status.pumpStartTime)) / 60000;
+
+            if (minutesRunning > maxPumpDuration) {
+                console.error(`[EMERGENCY] ${deviceId}: Pump running too long (> ${maxPumpDuration} mins). Force OFF.`);
+
+                // Gửi lệnh tắt khẩn cấp
+                mqttService.sendCommand(deviceId, { cmd: 'pump', value: false });
+
+                // Cập nhật cảnh báo
+                await Device.updateOne({ deviceId }, {
+                    'health.status': 'ERROR',
+                    'health.message': 'Bơm chạy quá lâu! Có thể do rò rỉ nước hoặc cảm biến hỏng.'
+                });
+                return; // Dừng logic tại đây
+            }
+        }
+
+        // ====================================================
+        // RULE 2: LOGIC BẬT BƠM (Kết hợp Nhiệt độ)
+        // ====================================================
+        // Nếu đất khô VÀ bơm đang tắt
+        if (soil < soilThresholdMin && !incomingData.pump) {
+
+            // Check Sốc Nhiệt: Nếu trời quá nóng (VD: > 37 độ)
+            if (temp > tempLimit) {
+                console.log(`[SKIPPED] ${deviceId}: Đất khô nhưng trời quá nóng (${temp}°C). Chờ mát hơn.`);
+                // Có thể gửi noti cho user biết là hệ thống đang hoãn tưới
+                return;
+            }
+
+            console.log(`[AUTO] ${deviceId}: Soil ${soil}% < ${soilThresholdMin}% -> PUMP ON`);
+            mqttService.sendCommand(deviceId, { cmd: 'pump', value: true });
+
+            await ActionLog.create({
+                deviceId, action: 'PUMP_ON', actor: 'SYSTEM',
+                details: `Soil ${soil}% < Min, Temp ${temp}°C OK`
+            });
+        }
+
+            // ====================================================
+            // RULE 3: LOGIC TẮT BƠM (Tưới đẫm)
+            // ====================================================
+        // Chỉ tắt khi đất đã thực sự ướt (đạt Max), không tắt lừng khừng
+        else if (soil >= soilThresholdMax && incomingData.pump) {
+            console.log(`[AUTO] ${deviceId}: Soil ${soil}% >= ${soilThresholdMax}% -> PUMP OFF`);
+            mqttService.sendCommand(deviceId, { cmd: 'pump', value: false });
+
+            // Clear lỗi nếu có (vì hệ thống đã hoạt động lại bình thường)
+            await Device.updateOne({ deviceId }, {
+                'health.status': 'OK',
+                'health.message': ''
+            });
+
+            await ActionLog.create({
+                deviceId, action: 'PUMP_OFF', actor: 'SYSTEM',
+                details: `Soil reached ${soil}%`
+            });
+        }
+
     } catch (error) {
         console.error(`[Automation Error] ${error.message}`);
     }

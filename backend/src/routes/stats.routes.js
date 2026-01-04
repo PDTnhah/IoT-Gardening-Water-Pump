@@ -14,4 +14,6 @@ router.get('/:id/logs', controller.getSensorLogs);
  */
 router.get('/:id/history', controller.getActionHistory);
 
+router.get('/:id/insights', controller.getInsights);
+
 module.exports = router;
