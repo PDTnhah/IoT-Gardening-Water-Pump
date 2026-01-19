@@ -28,7 +28,21 @@ export default function HeaderBar({ onMenuOpen }) {
         <MenuIcon />
       </IconButton>
 
-      <Typography variant="h5" fontWeight="bold">
+      <Typography
+          variant="h5"
+          fontWeight="bold"
+          sx={{
+              position: "absolute",
+              left: "50%",
+              transform: "translateX(-50%)",
+              textAlign: "center",
+              whiteSpace: "nowrap",
+              width: "fit-content",
+              "@media (max-width: 600px)": {
+                  fontSize: "1rem"
+              }
+          }}
+      >
         Hệ thống tưới cây thông minh
       </Typography>
 

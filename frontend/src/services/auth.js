@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:5000";
+const API_BASE = "http://localhost:5000/api";
 
 export async function register(username, password, fullName) {
   const res = await fetch(`${API_BASE}/auth/register`, {
@@ -6,6 +6,8 @@ export async function register(username, password, fullName) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password, fullName }),
   });
+
+  console.log(res);
 
   const data = await res.json();
   if (!res.ok) {
