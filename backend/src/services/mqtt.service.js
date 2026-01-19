@@ -80,7 +80,7 @@ const handleDataMessage = async (deviceId, data) => {
     try {
         const io = socketService.getIO();
         io.emit('device:update', { deviceId, ...data });
-    } catch (e) { /* Ignore if socket not ready */ }
+    } catch (e) {}
 
     // 4. Chạy Logic Tự Động
     await automationService.checkAutomation(deviceId, data, sendCommand);

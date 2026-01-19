@@ -7,7 +7,7 @@ const checkAutomation = async (deviceId, incomingData, sendCommandCallback) => {
         const device = await Device.findOne({ deviceId });
         if (!device) return;
 
-        // 1. Cập nhật thời gian bơm (Để tính toán Safety)
+        // Cập nhật thời gian bơm (Để tính toán Safety)
         // Nếu bơm đang bật mà trong DB chưa ghi nhận start time -> Ghi vào
         if (incomingData.pump && !device.status.pumpStartTime) {
             device.status.pumpStartTime = new Date();
@@ -27,9 +27,7 @@ const checkAutomation = async (deviceId, incomingData, sendCommandCallback) => {
         const { soil, temp } = incomingData;
         const { soilThresholdMin, soilThresholdMax, tempLimit, maxPumpDuration } = device.config;
 
-        // ====================================================
         // RULE 1: SAFETY CUTOFF (Bảo vệ phần cứng)
-        // ====================================================
         if (incomingData.pump && device.status.pumpStartTime) {
             const minutesRunning = (new Date() - new Date(device.status.pumpStartTime)) / 60000;
 
@@ -48,16 +46,14 @@ const checkAutomation = async (deviceId, incomingData, sendCommandCallback) => {
             }
         }
 
-        // ====================================================
         // RULE 2: LOGIC BẬT BƠM (Kết hợp Nhiệt độ)
-        // ====================================================
         // Nếu đất khô VÀ bơm đang tắt
         if (soil < soilThresholdMin && !incomingData.pump) {
 
             // Check Sốc Nhiệt: Nếu trời quá nóng (VD: > 37 độ)
             if (temp > tempLimit) {
                 console.log(`[SKIPPED] ${deviceId}: Đất khô nhưng trời quá nóng (${temp}°C). Chờ mát hơn.`);
-                // Có thể gửi noti cho user biết là hệ thống đang hoãn tưới
+
                 return;
             }
 
@@ -70,10 +66,8 @@ const checkAutomation = async (deviceId, incomingData, sendCommandCallback) => {
             });
         }
 
-            // ====================================================
-            // RULE 3: LOGIC TẮT BƠM (Tưới đẫm)
-            // ====================================================
-        // Chỉ tắt khi đất đã thực sự ướt (đạt Max), không tắt lừng khừng
+        // RULE 3: LOGIC TẮT BƠM (Tưới đẫm)
+        // Chỉ tắt khi đất đã thực sự ướt (đạt Max)
         else if (soil >= soilThresholdMax && incomingData.pump) {
             console.log(`[AUTO] ${deviceId}: Soil ${soil}% >= ${soilThresholdMax}% -> PUMP OFF`);
             sendCommandCallback(deviceId, { cmd: 'pump', value: false });

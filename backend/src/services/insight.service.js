@@ -31,12 +31,12 @@ const analyzeDeviceHealth = async (deviceId) => {
             if (endSoil - startSoil < 5) {
                 insights.push({
                     type: 'CRITICAL',
-                    msg: '⚠️ Cảnh báo: Máy bơm đã hoạt động nhưng độ ẩm không tăng. Có thể hết nước hoặc vòi tắc!'
+                    msg: 'Cảnh báo: Máy bơm đã hoạt động nhưng độ ẩm không tăng. Có thể hết nước hoặc vòi tắc!'
                 });
             } else {
                 insights.push({
                     type: 'INFO',
-                    msg: '✅ Hệ thống bơm hoạt động tốt, độ ẩm phản hồi nhanh.'
+                    msg: 'Hệ thống bơm hoạt động tốt, độ ẩm phản hồi nhanh.'
                 });
             }
         }
@@ -45,14 +45,13 @@ const analyzeDeviceHealth = async (deviceId) => {
     // INSIGHT 2: PHÁT HIỆN ĐẤT KÉM CHẤT LƯỢNG (GIỮ NƯỚC KÉM)
     // Logic: Tính tốc độ giảm độ ẩm
     // Lấy 2 điểm dữ liệu cách nhau 30p lúc bơm tắt
-    // (Đây là logic đơn giản hóa, thực tế cần thuật toán complex hơn)
     const logsPumpOff = logs.filter(l => l.soil > 50); // Chỉ xét lúc đất đang ẩm
     if (logsPumpOff.length > 10) {
         const dropRate = (logsPumpOff[0].soil - logsPumpOff[logsPumpOff.length-1].soil);
         if (dropRate > 20) { // Giảm 20% trong 1 giờ
             insights.push({
                 type: 'WARNING',
-                msg: '📉 Đất giữ nước kém (khô quá nhanh). Cân nhắc bón thêm xơ dừa hoặc đất thịt.'
+                msg: 'Đất giữ nước kém (khô quá nhanh). Cân nhắc bón thêm xơ dừa hoặc đất thịt.'
             });
         }
     }
@@ -62,7 +61,7 @@ const analyzeDeviceHealth = async (deviceId) => {
     if (maxTemp > 38) {
         insights.push({
             type: 'WARNING',
-            msg: `☀️ Nhiệt độ môi trường rất cao (${maxTemp}°C). Hệ thống sẽ tự động hoãn tưới trưa để bảo vệ rễ.`
+            msg: `Nhiệt độ môi trường rất cao (${maxTemp}°C). Hệ thống sẽ tự động hoãn tưới trưa để bảo vệ rễ.`
         });
     }
 

@@ -10,6 +10,7 @@ const socketService = require('./src/services/socket.service');
 const deviceRoutes = require('./src/routes/device.routes');
 const controlRoutes = require('./src/routes/control.routes');
 const statsRoutes = require('./src/routes/stats.routes');
+const authRoutes = require('./src/routes/auth.routes');
 
 // Init App
 const app = express();
@@ -30,6 +31,7 @@ mqttService.connect(); // Khởi tạo MQTT
 app.use('/api/devices', deviceRoutes);
 app.use('/api/control', controlRoutes);
 app.use('/api/analytics', statsRoutes);
+app.use('/api/auth', authRoutes);
 
 // Root Route
 app.get('/', (req, res) => {
